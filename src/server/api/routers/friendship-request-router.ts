@@ -79,14 +79,31 @@ export const friendshipRequestRouter = router({
        * scenario for Question 3
        *  - Run `yarn test` to verify your answer
        */
+      const canInsertNewRequest = await ctx.db
+        .selectFrom('friendships')
+        .select('id')
+        .where('friendships.userId', '=', ctx.session.userId)
+        .executeTakeFirst()
+      // If not exist -> create new
+      if (!canInsertNewRequest?.id) {
+        return await ctx.db
+          .insertInto('friendships')
+          .values({
+            userId: ctx.session.userId,
+            friendUserId: input.friendUserId,
+            status: FriendshipStatusSchema.Values['requested'],
+          })
+          .execute()
+      }
+      // If exist -> update
       return ctx.db
-        .insertInto('friendships')
-        .values({
-          userId: ctx.session.userId,
-          friendUserId: input.friendUserId,
+        .updateTable('friendships')
+        .set({
           status: FriendshipStatusSchema.Values['requested'],
         })
-        .execute()
+        .where('friendships.userId', '=', ctx.session.userId)
+        .where('friendships.friendUserId', '=', input.friendUserId)
+        .executeTakeFirstOrThrow()
     }),
 
   accept: procedure
@@ -121,7 +138,7 @@ export const friendshipRequestRouter = router({
         await t
           .updateTable('friendships')
           .set({
-            status: 'accepted',
+            status: FriendshipStatusSchema.Values['accepted'],
           })
           .where('friendships.userId', '=', input.friendUserId)
           .where('friendships.friendUserId', '=', ctx.session.userId)
@@ -139,14 +156,14 @@ export const friendshipRequestRouter = router({
             .values({
               userId: ctx.session.userId,
               friendUserId: input.friendUserId,
-              status: 'accepted',
+              status: FriendshipStatusSchema.Values['accepted'],
             })
             .executeTakeFirst()
         } else {
           await t
             .updateTable('friendships')
             .set({
-              status: 'accepted',
+              status: FriendshipStatusSchema.Values['accepted'],
             })
             .where('friendships.userId', '=', ctx.session.userId)
             .where('friendships.friendUserId', '=', input.friendUserId)
@@ -176,7 +193,7 @@ export const friendshipRequestRouter = router({
         await t
           .updateTable('friendships')
           .set({
-            status: 'declined',
+            status: FriendshipStatusSchema.Values['declined'],
           })
           .where('friendships.userId', '=', input.friendUserId)
           .where('friendships.friendUserId', '=', ctx.session.userId)
