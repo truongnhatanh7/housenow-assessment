@@ -117,6 +117,41 @@ export const friendshipRequestRouter = router({
          *  - https://kysely-org.github.io/kysely/classes/Kysely.html#insertInto
          *  - https://kysely-org.github.io/kysely/classes/Kysely.html#updateTable
          */
+
+        await t
+          .updateTable('friendships')
+          .set({
+            status: 'accepted',
+          })
+          .where('friendships.userId', '=', input.friendUserId)
+          .where('friendships.friendUserId', '=', ctx.session.userId)
+          .executeTakeFirstOrThrow()
+
+        const oppositeResult = await t
+          .selectFrom('friendships')
+          .select('id')
+          .where('friendships.userId', '=', ctx.session.userId)
+          .executeTakeFirst()
+
+        if (!oppositeResult?.id) {
+          await t
+            .insertInto('friendships')
+            .values({
+              userId: ctx.session.userId,
+              friendUserId: input.friendUserId,
+              status: 'accepted',
+            })
+            .executeTakeFirst()
+        } else {
+          await t
+            .updateTable('friendships')
+            .set({
+              status: 'accepted',
+            })
+            .where('friendships.userId', '=', ctx.session.userId)
+            .where('friendships.friendUserId', '=', input.friendUserId)
+            .executeTakeFirstOrThrow()
+        }
       })
     }),
 
@@ -137,5 +172,15 @@ export const friendshipRequestRouter = router({
        * Documentation references:
        *  - https://vitest.dev/api/#test-skip
        */
+      await ctx.db.transaction().execute(async (t) => {
+        await t
+          .updateTable('friendships')
+          .set({
+            status: 'declined',
+          })
+          .where('friendships.userId', '=', input.friendUserId)
+          .where('friendships.friendUserId', '=', ctx.session.userId)
+          .executeTakeFirstOrThrow()
+      })
     }),
 })
