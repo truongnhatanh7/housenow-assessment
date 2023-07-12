@@ -47,6 +47,11 @@ export const myFriendRouter = router({
             'userTotalFriendCount.userId',
             'friends.id'
           )
+          .innerJoin(
+            userMutalFriendCount(conn).as('userMutalFriendCount'),
+            'userMutalFriendCount.userId',
+            'friends.id'
+          )
           .where('friendships.userId', '=', ctx.session.userId)
           .where('friendships.friendUserId', '=', input.friendUserId)
           .where(
@@ -59,6 +64,7 @@ export const myFriendRouter = router({
             'friends.fullName',
             'friends.phoneNumber',
             'totalFriendCount',
+            'mutualFriendCount',
           ])
           .executeTakeFirstOrThrow(() => new TRPCError({ code: 'NOT_FOUND' }))
           .then(
@@ -76,11 +82,25 @@ export const myFriendRouter = router({
 
 const userTotalFriendCount = (db: Database) => {
   return db
-    .selectFrom('friendships')
-    .where('friendships.status', '=', FriendshipStatusSchema.Values['accepted'])
+    .selectFrom('friendships as fs')
+    .where('fs.status', '=', FriendshipStatusSchema.Values['accepted'])
     .select((eb) => [
-      'friendships.userId',
-      eb.fn.count('friendships.friendUserId').as('totalFriendCount'),
+      'fs.userId',
+      eb.fn.count('fs.friendUserId').as('totalFriendCount'),
     ])
-    .groupBy('friendships.userId')
+    .groupBy('fs.userId')
+}
+
+const userMutalFriendCount = (db: Database) => {
+  // eslint-disable-next-line prettier/prettier, no-console
+  console.log("Yasuo////////////////////")
+  return db
+    .selectFrom('friendships as f1')
+    .innerJoin('friendships as f2', 'f1.friendUserId', 'f2.friendUserId')
+    .select((eb) => [
+      'f1.userId',
+      'f2.userId',
+      eb.fn.count('f1.friendUserId').as('mutualFriendCount'),
+    ])
+    .groupBy(['f1.userId', 'f2.userId'])
 }
