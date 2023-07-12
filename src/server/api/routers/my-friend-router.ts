@@ -92,8 +92,6 @@ const userTotalFriendCount = (db: Database) => {
 }
 
 const userMutalFriendCount = (db: Database) => {
-  // eslint-disable-next-line prettier/prettier, no-console
-  console.log("Yasuo////////////////////")
   return db
     .selectFrom('friendships as f1')
     .innerJoin('friendships as f2', 'f1.friendUserId', 'f2.friendUserId')
