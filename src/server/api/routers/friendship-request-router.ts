@@ -79,31 +79,20 @@ export const friendshipRequestRouter = router({
        * scenario for Question 3
        *  - Run `yarn test` to verify your answer
        */
-      const canInsertNewRequest = await ctx.db
-        .selectFrom('friendships')
-        .select('id')
-        .where('friendships.userId', '=', ctx.session.userId)
-        .executeTakeFirst()
-      // If not exist -> create new
-      if (!canInsertNewRequest?.id) {
-        return await ctx.db
-          .insertInto('friendships')
-          .values({
-            userId: ctx.session.userId,
-            friendUserId: input.friendUserId,
-            status: FriendshipStatusSchema.Values['requested'],
-          })
-          .execute()
-      }
-      // If exist -> update
-      return ctx.db
-        .updateTable('friendships')
-        .set({
+
+      return await ctx.db
+        .insertInto('friendships')
+        .values({
+          userId: ctx.session.userId,
+          friendUserId: input.friendUserId,
           status: FriendshipStatusSchema.Values['requested'],
         })
-        .where('friendships.userId', '=', ctx.session.userId)
-        .where('friendships.friendUserId', '=', input.friendUserId)
-        .executeTakeFirstOrThrow()
+        .onConflict((oc) =>
+          oc.columns(['userId', 'friendUserId']).doUpdateSet({
+            status: FriendshipStatusSchema.Values['requested'],
+          })
+        )
+        .executeTakeFirst()
     }),
 
   accept: procedure
@@ -142,33 +131,21 @@ export const friendshipRequestRouter = router({
           })
           .where('friendships.userId', '=', input.friendUserId)
           .where('friendships.friendUserId', '=', ctx.session.userId)
-          .executeTakeFirstOrThrow()
+          .executeTakeFirstOrThrow(() => new Error('yasuo err 1'))
 
-        const oppositeResult = await t
-          .selectFrom('friendships')
-          .select('id')
-          .where('friendships.userId', '=', ctx.session.userId)
-          .executeTakeFirst()
-
-        if (!oppositeResult?.id) {
-          await t
-            .insertInto('friendships')
-            .values({
-              userId: ctx.session.userId,
-              friendUserId: input.friendUserId,
-              status: FriendshipStatusSchema.Values['accepted'],
+        await t
+          .insertInto('friendships')
+          .values({
+            userId: ctx.session.userId,
+            friendUserId: input.friendUserId,
+            status: 'accepted',
+          })
+          .onConflict((oc) =>
+            oc.columns(['userId', 'friendUserId']).doUpdateSet({
+              status: 'accepted',
             })
-            .executeTakeFirst()
-        } else {
-          await t
-            .updateTable('friendships')
-            .set({
-              status: FriendshipStatusSchema.Values['accepted'],
-            })
-            .where('friendships.userId', '=', ctx.session.userId)
-            .where('friendships.friendUserId', '=', input.friendUserId)
-            .executeTakeFirstOrThrow()
-        }
+          )
+          .executeTakeFirstOrThrow(() => new Error('yasuo err 2'))
       })
     }),
 
